@@ -160,7 +160,7 @@ var _scheduler = function (job) {
                 logger.debug('job is not exist, please check configuration');
             }
             startJob();
-        }, 0);
+        }, 5000);
     };
 
     var stopJob = function () {
@@ -207,8 +207,7 @@ var _jobTick = function () {
     }).then(function (res) {
         logger.debug(res);
         setTimeout(function () {
-            //esp8266.deepSleep(config.sleepTime * 1000);
-            logger.debug("sleeeeeeeeeeeeeeeeeeeeeeeep");
+            esp8266.deepSleep(config.sleepTime * 1000);
         }, 1000);
     });
 };
