@@ -17,7 +17,7 @@ var config = {
         "dht22": true, /*temperature sensor base on dht 22*/
         "dht11": false, /*temperature sensor base on dht 11*/
         "bmp085": true, /*pressure sensor*/
-        "bh1750": true, /*light sensor*/
+        "bh1750": false, /*light sensor*/
         "ds18b20": true, /*"temperature sensor base on ds18b20"*/
     }
 };
@@ -29,8 +29,7 @@ var logger = {
 
 var dht22 = require("http://www.espruino.com/modules/DHT22.js").connect(NodeMCU.D1);
 
-I2C1.setup({scl: NodeMCU.D7, sda: NodeMCU.D8});
-
+I2C1.setup({scl: NodeMCU.D2, sda: NodeMCU.D3});
 
 var _readDHT22 = function () {
     return new Promise(function (resolve, reject) {
@@ -70,9 +69,10 @@ var _readLight = function () {
             reject();
         }
         else {
-            var bh = require("BH1750").connect(I2C1);
-            bh.start(1,0);
-            resolve(bh.read());
+            //var bh = require("BH1750").connect(I2C1);
+            //bh.start(1,0);
+            //resolve(bh.read());
+            resolve();
         }
     });
 };
@@ -209,7 +209,7 @@ var _jobTick = function () {
         return _upload(data);
     }).then(function (res) {
         logger.debug(res);
-        //esp8266.deepSleep(config.sleepTime * 1000);
+        esp8266.deepSleep(config.sleepTime * 1000);
     });
 };
 
