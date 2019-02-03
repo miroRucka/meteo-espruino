@@ -5,9 +5,9 @@ var ssid = "sanovNet2";
 var password = "odvolatvpripade";
 
 var config = {
-    "serverEndpoint": "api.horske.info",
+    "serverEndpoint": "api2.horske.info",
     "serverPort": "80",
-    "auth": "c3VzbGlrOmJ1Ym8=",
+    "auth": "Basic c3VzbGlrOlN1c2xpazEyMw==",
     "startProgramTimeout": 30000, //!!!TOTO NEDAVAJ MENSIE AKO 15000, POTOM BY SI NESTIHOL FLASHNUT KOLI SPANKU!!!
     "sleepTime": 390000,
     "location": "Espruino meteo station",
@@ -16,8 +16,8 @@ var config = {
     "hw": {
         "dht22": true, /*temperature sensor base on dht 22*/
         "dht11": false, /*temperature sensor base on dht 11*/
-        "bmp085": false, /*pressure sensor*/
-        "bh1750": false, /*light sensor*/
+        "bmp085": true, /*pressure sensor*/
+        "bh1750": true, /*light sensor*/
         "ds18b20": true, /*"temperature sensor base on ds18b20"*/
     }
 };
@@ -28,6 +28,8 @@ var logger = {
 };
 
 var dht22 = require("http://www.espruino.com/modules/DHT22.js").connect(NodeMCU.D1);
+
+I2C1.setup({scl: NodeMCU.D7, sda: NodeMCU.D8});
 
 
 var _readDHT22 = function () {
@@ -54,7 +56,10 @@ var _readBmp085 = function () {
             reject();
         }
         else {
-            //to impl
+            var bmp = require("BMP085").connect(I2C1);
+            bmp.getPressure(function (d) {
+                resolve(d);
+            });
         }
     });
 };
@@ -65,7 +70,9 @@ var _readLight = function () {
             reject();
         }
         else {
-            //to impl
+            var bh = require("BH1750").connect(I2C1);
+            bh.start(1,0);
+            resolve(bh.read());
         }
     });
 };
@@ -114,7 +121,8 @@ var _measure = function () {
         light: undefined,
         humidity: undefined,
         location: config.location,
-        locationId: config.locationId
+        locationId: config.locationId,
+        timestamp: (new Date()).getTime()
     };
     return _readBmp085()
         .then(function (data) {
@@ -181,7 +189,7 @@ var _upload = function (sensorData) {
         var options = {
             host: config.serverEndpoint,
             port: config.serverPort,
-            path: '/api/sensors',
+            path: '/meteo-data',
             method: 'POST',
             headers: {
                 "Content-Type": "application/json",
@@ -190,12 +198,7 @@ var _upload = function (sensorData) {
             }
         };
         require("http").request(options, function (res) {
-            res.on('data', function (data) {
-                resolve(data);
-            });
-            res.on('error', function (data) {
-                reject(data);
-            });
+            resolve("done");
         }).end(content);
     });
 };
@@ -206,9 +209,7 @@ var _jobTick = function () {
         return _upload(data);
     }).then(function (res) {
         logger.debug(res);
-        setTimeout(function () {
-            esp8266.deepSleep(config.sleepTime * 1000);
-        }, 1000);
+        //esp8266.deepSleep(config.sleepTime * 1000);
     });
 };
 
@@ -219,7 +220,7 @@ var _main = function () {
 
         _scheduler(_jobTick).start();
         //after start;
-        _jobTick(true);
+        _jobTick();
 
     };
 
