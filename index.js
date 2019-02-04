@@ -8,8 +8,8 @@ var config = {
     "serverEndpoint": "api2.horske.info",
     "serverPort": "80",
     "auth": "Basic c3VzbGlrOlN1c2xpazEyMw==",
-    "startProgramTimeout": 30000, //!!!TOTO NEDAVAJ MENSIE AKO 15000, POTOM BY SI NESTIHOL FLASHNUT KOLI SPANKU!!!
-    "sleepTime": 390000,
+    "startProgramTimeout": 90000, //!!!TOTO NEDAVAJ MENSIE AKO 15000, POTOM BY SI NESTIHOL FLASHNUT KOLI SPANKU!!!
+    "sleepTime": 420000,
     "location": "Espruino meteo station",
     "locationId": "espruino_005",
     "elevation": "394",
@@ -17,7 +17,7 @@ var config = {
         "dht22": true, /*temperature sensor base on dht 22*/
         "dht11": false, /*temperature sensor base on dht 11*/
         "bmp085": true, /*pressure sensor*/
-        "bh1750": false, /*light sensor*/
+        "bh1750": true, /*light sensor*/
         "ds18b20": true, /*"temperature sensor base on ds18b20"*/
     }
 };
@@ -30,6 +30,7 @@ var logger = {
 var dht22 = require("http://www.espruino.com/modules/DHT22.js").connect(NodeMCU.D1);
 
 I2C1.setup({scl: NodeMCU.D2, sda: NodeMCU.D3});
+var bmp = require("BMP085").connect(I2C1);
 
 var _readDHT22 = function () {
     return new Promise(function (resolve, reject) {
@@ -69,9 +70,9 @@ var _readLight = function () {
             reject();
         }
         else {
-            //var bh = require("BH1750").connect(I2C1);
-            //bh.start(1,0);
-            //resolve(bh.read());
+            var bh = require("BH1750").connect(I2C1);
+            bh.start(1,0);
+            resolve(bh.read());
             resolve();
         }
     });
@@ -97,7 +98,8 @@ var _getPressureRSL = function (pressure, temperature, elevation) {
     if (_isUndefined(pressure) || _isUndefined(temperature) || _isUndefined(elevation)) {
         return;
     }
-    return Number(pressure) / Math.exp(-Number(elevation) / (29.271795 * (273.15 + Number(temperature))));
+    var number = Number(pressure) / Math.exp(-Number(elevation) / (29.271795 * (273.15 + Number(temperature))));
+    return Number(number)/100;
 };
 
 function _isUndefined(value) {
@@ -155,34 +157,6 @@ var _measure = function () {
         });
 };
 
-var _scheduler = function (job) {
-
-    var timeout;
-
-    var startJob = function () {
-        timeout = setTimeout(function () {
-            logger.debug('job fired...');
-            if (!_isUndefined(job)) {
-                job();
-            } else {
-                logger.debug('job is not exist, please check configuration');
-            }
-            startJob();
-        }, 5000);
-    };
-
-    var stopJob = function () {
-        if (!_isUndefined(timeout)) {
-            clearTimeout(timeout);
-        }
-    };
-
-    return {
-        start: startJob,
-        stop: stopJob
-    };
-};
-
 var _upload = function (sensorData) {
     return new Promise(function (resolve, reject) {
         var content = JSON.stringify(sensorData);
@@ -210,6 +184,7 @@ var _jobTick = function () {
     }).then(function (res) {
         logger.debug(res);
         esp8266.deepSleep(config.sleepTime * 1000);
+        setTimeout(_jobTick,500);
     });
 };
 
@@ -217,20 +192,15 @@ var _main = function () {
 
     var _onWifiConnected = function () {
         _logWifiInfo();
-
-        _scheduler(_jobTick).start();
-        //after start;
         _jobTick();
-
     };
 
     wifi.connect(ssid, {password: password}, _onWifiConnected);
     wifi.save();
-
-    save();
-
 };
 
 logger.debug("start with config: ", config);
 
 setTimeout(_main, config.startProgramTimeout);
+
+save();
