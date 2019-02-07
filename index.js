@@ -5,7 +5,7 @@ var ssid = "sanovNet2";
 var password = "odvolatvpripade";
 
 var config = {
-    "serverEndpoint": "api2.horske.info",
+    "serverEndpoint": "api.horske.info",
     "serverPort": "80",
     "auth": "Basic c3VzbGlrOlN1c2xpazEyMw==",
     "startProgramTimeout": 60000, //!!!TOTO NEDAVAJ MENSIE AKO 15000, POTOM BY SI NESTIHOL FLASHNUT KOLI SPANKU!!!
@@ -16,7 +16,7 @@ var config = {
     "hw": {
         "dht22": true, /*temperature sensor base on dht 22*/
         "dht11": false, /*temperature sensor base on dht 11*/
-        "bmp085": false, /*pressure sensor*/
+        "bmp085": true, /*pressure sensor*/
         "bh1750": true, /*light sensor*/
         "ds18b20": true, /*"temperature sensor base on ds18b20"*/
     }
@@ -57,8 +57,11 @@ var _readBmp085 = function () {
         else {
             var bmp = require("BMP085").connect(I2C1, 1);
             bmp.getPressure(function (d) {
-                console.log("raw pressure", d);
-                resolve(d);
+                var pressureSeaLevel = Number(bmp.getSeaLevel(d.pressure, config.elevation)) / 100;
+                resolve({
+                    pressure: pressureSeaLevel,
+                    temperature: d.temperature
+                });
             });
         }
     });
@@ -94,21 +97,6 @@ var _readDs18b20 = function () {
 };
 
 
-var _getPressureRSL = function (pressure, temperature, elevation) {
-    if (_isUndefined(pressure) || _isUndefined(temperature) || _isUndefined(elevation)) {
-        return;
-    }
-    var number = Number(pressure) / Math.exp(-Number(elevation) / (29.271795 * (273.15 + Number(temperature))));
-    return Number(number) / 100;
-};
-
-function _isUndefined(value) {
-    // Obtain `undefined` value that's
-    // guaranteed to not have been re-assigned
-    var undefined = void(0);
-    return value === undefined;
-}
-
 var _logWifiInfo = function () {
     var IPobject = wifi.getIP();
 
@@ -117,6 +105,7 @@ var _logWifiInfo = function () {
 };
 
 var _measure = function () {
+    var timestamp = (new Date()).getTime();
     var result = {
         temperature: [],
         pressure: undefined,
@@ -124,12 +113,11 @@ var _measure = function () {
         humidity: undefined,
         location: config.location,
         locationId: config.locationId,
-        timestamp: (new Date()).getTime()
+        timestamp: timestamp
     };
     return _readBmp085()
         .then(function (data) {
-            var rsl = _getPressureRSL(data.pressure, data.temperature, config.elevation);
-            result.pressure = !_isUndefined(rsl) ? rsl : data.pressure;
+            result.pressure = data.pressure;
             result.temperature.push({'key': 't1', value: Number(data.temperature)});
             return _readDs18b20();
         }, function () {
@@ -163,7 +151,7 @@ var _upload = function (sensorData) {
         var options = {
             host: config.serverEndpoint,
             port: config.serverPort,
-            path: '/meteo-data',
+            path: '/api/sensors',
             method: 'POST',
             headers: {
                 "Content-Type": "application/json",
@@ -172,23 +160,23 @@ var _upload = function (sensorData) {
             }
         };
         require("http").request(options, function (res) {
-            resolve("done");
+            resolve(res);
         }).end(content);
     });
 };
 
-var _sleep = function (res) {
-    logger.debug(res);
-    esp8266.deepSleep(config.sleepTime * 1000);
-    setTimeout(_jobTick, 500);
-};
 
 var _jobTick = function () {
     logger.debug('job fired...');
+    var _repeat = function (res) {
+        logger.debug('done', res);
+        esp8266.deepSleep(config.sleepTime * 1000);
+        setTimeout(_jobTick, 500);
+    };
     _measure().then(function (data) {
         logger.debug(data);
         return _upload(data);
-    }).then(_sleep, _sleep);
+    }).then(_repeat, _repeat);
 };
 
 var _main = function () {
@@ -205,5 +193,3 @@ var _main = function () {
 logger.debug("start with config: ", config);
 
 _main();
-
-save();
