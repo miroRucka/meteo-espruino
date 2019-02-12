@@ -8,7 +8,6 @@ var config = {
     "serverEndpoint": "api.horske.info",
     "serverPort": "80",
     "auth": "Basic c3VzbGlrOlN1c2xpazEyMw==",
-    "startProgramTimeout": 60000, //!!!TOTO NEDAVAJ MENSIE AKO 15000, POTOM BY SI NESTIHOL FLASHNUT KOLI SPANKU!!!
     "sleepTime": 420000,
     "location": "Espruino meteo station",
     "locationId": "espruino_005",
@@ -18,7 +17,7 @@ var config = {
         "dht11": false, /*temperature sensor base on dht 11*/
         "bmp085": true, /*pressure sensor*/
         "bh1750": true, /*light sensor*/
-        "ds18b20": true, /*"temperature sensor base on ds18b20"*/
+        "ds18b20": true /*"temperature sensor base on ds18b20"*/
     }
 };
 
@@ -97,13 +96,6 @@ var _readDs18b20 = function () {
 };
 
 
-var _logWifiInfo = function () {
-    var IPobject = wifi.getIP();
-
-    logger.debug('IP: ', IPobject.ip);
-    logger.debug('MAC: ', IPobject.mac);
-};
-
 var _measure = function () {
     var timestamp = (new Date()).getTime();
     var result = {
@@ -167,7 +159,6 @@ var _upload = function (sensorData) {
 
 
 var _jobTick = function () {
-    logger.debug('job fired...');
     var _repeat = function (res) {
         logger.debug('done', res);
         esp8266.deepSleep(config.sleepTime * 1000);
@@ -182,7 +173,6 @@ var _jobTick = function () {
 var _main = function () {
 
     var _onWifiConnected = function () {
-        _logWifiInfo();
         _jobTick();
     };
 
