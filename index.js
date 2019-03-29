@@ -1,8 +1,8 @@
 var wifi = require('Wifi');
 var esp8266 = require('ESP8266');
 
-var ssid = "sanovNet2";
-var password = "odvolatvpripade";
+var ssid = "#####";
+var password = "#######";
 
 var config = {
     "serverEndpoint": "api.horske.info",
